@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardinal Health Shares Outstanding</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+            margin-top: 30px;
+        }
+        h1 {
+            color: #c00000; /* Cardinal Health primary red */
+            margin-bottom: 25px;
+            font-size: 2.2em;
+            font-weight: 600;
+        }
+        #data-display {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 20px;
+        }
+        .card {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            text-align: left;
+        }
+        .card h2 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #c00000;
+            padding-bottom: 10px;
+        }
+        .card p {
+            margin: 10px 0;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        .card p span {
+            font-weight: 600;
+            color: #0056b3; /* A contrasting blue for values */
+        }
+        #error-message {
+            color: #d9534f; /* Bootstrap danger red */
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, .1);
+            border-left-color: #c00000;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin-top: 15px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="share-entity-name">Loading Company Data...</h1>
+        <div class="loading-spinner" id="loading-spinner"></div>
+        <div id="data-display">
+            <div class="card">
+                <h2>Max Shares Outstanding</h2>
+                <p>Value: <span id="share-max-value"></span></p>
+                <p>Fiscal Year: <span id="share-max-fy"></span></p>
+            </div>
+            <div class="card">
+                <h2>Min Shares Outstanding</h2>
+                <p>Value: <span id="share-min-value"></span></p>
+                <p>Fiscal Year: <span id="share-min-fy"></span></p>
+            </div>
+        </div>
+        <p id="error-message" style="display: none;"></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const defaultCik = '0000721371'; // Cardinal Health CIK
+            const secApiBaseUrl = 'https://data.sec.gov/api/xbrl/companyconcept/';
+            const conceptPath = '/dei/EntityCommonStockSharesOutstanding.json';
+            const corsProxy = 'https://api.allorigins.win/raw?url='; // Generic CORS proxy
+
+            const entityNameElem = document.getElementById('share-entity-name');
+            const maxValElem = document.getElementById('share-max-value');
+            const maxFyElem = document.getElementById('share-max-fy');
+            const minValElem = document.getElementById('share-min-value');
+            const minFyElem = document.getElementById('share-min-fy');
+            const errorMessageElem = document.getElementById('error-message');
+            const loadingSpinner = document.getElementById('loading-spinner');
+
+            function showLoading(isLoading) {
+                loadingSpinner.style.display = isLoading ? 'block' : 'none';
+                document.getElementById('data-display').style.display = isLoading ? 'none' : 'flex';
+                errorMessageElem.style.display = 'none';
+            }
+
+            function updateUI(data) {
+                document.title = `${data.entityName} Shares Outstanding`;
+                entityNameElem.textContent = data.entityName;
+                maxValElem.textContent = data.max.val.toLocaleString(); // Format number
+                maxFyElem.textContent = data.max.fy;
+                minValElem.textContent = data.min.val.toLocaleString(); // Format number
+                minFyElem.textContent = data.min.fy;
+                errorMessageElem.style.display = 'none';
+                document.getElementById('data-display').style.display = 'flex'; // Ensure data is visible
+            }
+
+            function displayError(message) {
+                errorMessageElem.textContent = `Error: ${message}`;
+                errorMessageElem.style.display = 'block';
+                // Clear data fields on error
+                document.title = 'Error Loading Data';
+                entityNameElem.textContent = 'Failed to Load Company Data';
+                maxValElem.textContent = 'N/A';
+                maxFyElem.textContent = 'N/A';
+                minValElem.textContent = 'N/A';
+                minFyElem.textContent = 'N/A';
+                document.getElementById('data-display').style.display = 'none'; // Hide data display on error
+            }
+
+            async function fetchAndProcessData(cik) {
+                showLoading(true);
+                let url;
+                let isInitialLoadFromDataJson = false;
+
+                if (cik) {
+                    // Using CORS proxy for SEC API
+                    url = `${corsProxy}${encodeURIComponent(secApiBaseUrl + 'CIK' + cik + conceptPath)}`;
+                } else {
+                    // Initial load for default CIK from data.json
+                    url = 'data.json';
+                    isInitialLoadFromDataJson = true;
+                }
+
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    const rawData = await response.json();
+
+                    if (isInitialLoadFromDataJson) {
+                        // data.json is already in the desired format
+                        // The brief states 'data.json' has 'entityName' field matching 'Cardinal Health'
+                        // and index.html <h1 id='share-entity-name'> contains the entityName from data.json
+                        updateUI(rawData);
+                        showLoading(false);
+                        return;
+                    }
+
+                    // Process raw SEC data for dynamic CIKs
+                    const entityName = rawData.entityName;
+                    const shares = rawData.units.shares;
+
+                    const filteredShares = shares.filter(s => {
+                        // Ensure fy is a string and can be compared, and val is numeric
+                        return s.fy && parseInt(s.fy) > 2020 && typeof s.val === 'number';
+                    });
+
+                    if (filteredShares.length === 0) {
+                        throw new Error('No relevant share data found for the specified criteria (fy > 2020).');
+                    }
+
+                    let maxVal = -Infinity;
+                    let minVal = Infinity;
+                    let maxEntry = null;
+                    let minEntry = null;
+
+                    filteredShares.forEach(s => {
+                        if (s.val > maxVal) {
+                            maxVal = s.val;
+                            maxEntry = { val: s.val, fy: s.fy };
+                        }
+                        if (s.val < minVal) {
+                            minVal = s.val;
+                            minEntry = { val: s.val, fy: s.fy };
+                        }
+                    });
+
+                    if (!maxEntry || !minEntry) {
+                        throw new Error('Could not determine max/min values from filtered data.');
+                    }
+
+                    updateUI({
+                        entityName: entityName,
+                        max: maxEntry,
+                        min: minEntry
+                    });
+
+                } catch (error) {
+                    console.error('Failed to fetch or process company data:', error);
+                    displayError(error.message);
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            // Get CIK from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const cikParam = urlParams.get('CIK');
+
+            if (cikParam && /^\d{10}$/.test(cikParam)) {
+                fetchAndProcessData(cikParam);
+            } else {
+                // Fallback to data.json for initial load if no valid CIK param
+                fetchAndProcessData(null); // Explicitly loads from 'data.json'
+            }
+        });
+    </script>
+</body>
+</html>
